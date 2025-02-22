@@ -1,0 +1,7 @@
+{
+    "github.copilot.chat.generateTests.codeLens": true,
+    "tailwindCSS.experimental.configFile": "src/styles.scss",
+    "vs-code-prettier-eslint.prettierLast": true,
+  
+  }
+  
