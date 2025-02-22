@@ -6,9 +6,10 @@ export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.isAuthenticated()) {
+  if (authService.checkAuthentication()) {
     return true;
   }
 
-  return router.createUrlTree(['/login']);
+  // The checkAuthentication method will handle the redirect to Keycloak
+  return false;
 };

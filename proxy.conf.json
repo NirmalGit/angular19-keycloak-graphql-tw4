@@ -2,7 +2,12 @@
   "/realms/*": {
     "target": "http://localhost:8080",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "headers": {
+      "Origin": "http://localhost:4200",
+      "Access-Control-Allow-Origin": "http://localhost:4200"
+    }
   },
   "/graphql": {
     "target": "http://localhost:5001",

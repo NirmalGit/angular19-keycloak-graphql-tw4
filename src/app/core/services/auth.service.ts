@@ -26,9 +26,14 @@ interface JwtPayload {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly TOKEN_ENDPOINT = 'http://localhost:8080/realms/baxter_realm/protocol/openid-connect/token';
+  private readonly BASE_URL = 'http://localhost:8080';
+  private readonly AUTH_ENDPOINT = `${this.BASE_URL}/realms/baxter_realm/protocol/openid-connect/auth`;
+  private readonly TOKEN_ENDPOINT = `${this.BASE_URL}/realms/baxter_realm/protocol/openid-connect/token`;
+  private readonly LOGOUT_ENDPOINT = `${this.BASE_URL}/realms/baxter_realm/protocol/openid-connect/logout`;
   private readonly CLIENT_ID = 'baxter_client';
   private readonly CLIENT_SECRET = 'dGDP5dxWfxZPPxahwSr6XVL3YATB9pev';
+  private readonly REDIRECT_URI = 'http://localhost:4200/login';
+  private errorMessage = signal<string>('');
 
   private isAuthenticatedSignal = signal<boolean>(false);
   private tokenSignal = signal<string | null>(null);
@@ -42,6 +47,19 @@ export class AuthService {
     private router: Router
   ) {
     this.checkStoredToken();
+    this.handleAuthorizationCode();
+  }
+
+  checkAuthentication() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      this.initiateLogin();
+      return false;
+    }
+    this.tokenSignal.set(token);
+    this.isAuthenticatedSignal.set(true);
+    this.updateUserRole(token);
+    return true;
   }
 
   private checkStoredToken() {
@@ -53,26 +71,60 @@ export class AuthService {
     }
   }
 
-  login(username: string, password: string): Observable<KeycloakToken> {
-    const body = new URLSearchParams();
-    body.set('username', username);
-    body.set('password', password);
-    body.set('grant_type', 'password');
-    body.set('client_id', this.CLIENT_ID);
-    body.set('client_secret', this.CLIENT_SECRET);
+  initiateLogin() {
+    this.logout();
+    const params = new URLSearchParams({
+      client_id: this.CLIENT_ID,
+      response_type: 'code',
+      redirect_uri: this.REDIRECT_URI
+    });
+    window.location.href = `${this.AUTH_ENDPOINT}?${params.toString()}`;
+  }
 
-    return this.http.post<KeycloakToken>(this.TOKEN_ENDPOINT, body.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    }).pipe(
-      tap(response => {
-        localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('refresh_token', response.refresh_token);
-        this.tokenSignal.set(response.access_token);
+  private async handleAuthorizationCode(): Promise<void> {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+      console.log('Starting token exchange with code:', code);
+      
+      const body = new URLSearchParams();
+      body.set('grant_type', 'authorization_code');
+      body.set('code', code);
+      body.set('redirect_uri', this.REDIRECT_URI);
+      body.set('client_id', this.CLIENT_ID);
+      body.set('client_secret', this.CLIENT_SECRET);
+
+      try {
+        const response = await fetch(this.TOKEN_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: body.toString()
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const token: KeycloakToken = await response.json();
+        console.log('Token exchange successful');
+        
+        localStorage.setItem('access_token', token.access_token);
+        localStorage.setItem('refresh_token', token.refresh_token);
+        this.tokenSignal.set(token.access_token);
         this.isAuthenticatedSignal.set(true);
-        this.updateUserRole(response.access_token);
+        this.updateUserRole(token.access_token);
+        window.history.replaceState({}, document.title, window.location.pathname);
         this.router.navigate(['/dashboard']);
-      })
-    );
+      } catch (error) {
+        console.error('Token exchange error:', error);
+        this.errorMessage.set('Authentication failed. Please try again.');
+        this.logout();
+        this.router.navigate(['/login']);
+      }
+    }
   }
 
   private updateUserRole(token: string) {
@@ -87,12 +139,30 @@ export class AuthService {
   }
 
   logout() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    const body = new URLSearchParams();
+    body.set('client_id', this.CLIENT_ID);
+    body.set('client_secret', this.CLIENT_SECRET);
+    body.set('refresh_token', refreshToken || '');
+
+    // Clear local state first
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     this.tokenSignal.set(null);
     this.isAuthenticatedSignal.set(false);
     this.userRoleSignal.set('');
-    this.router.navigate(['/login']);
+
+    // Notify Keycloak about logout
+    fetch(this.LOGOUT_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: body.toString()
+    }).finally(() => {
+      // Redirect to login page regardless of logout endpoint response
+      this.router.navigate(['/login']);
+    });
   }
 
   getToken(): string | null {
