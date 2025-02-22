@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, signal, effect } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, map, tap, interval, Subscription } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
 
 interface KeycloakToken {
@@ -38,9 +38,12 @@ export class AuthService {
   private isAuthenticatedSignal = signal<boolean>(false);
   private tokenSignal = signal<string | null>(null);
   private userRoleSignal = signal<string>('');
+  private tokenExpirySignal = signal<number>(0);
+  private refreshTimerSubscription?: Subscription;
 
   readonly isAuthenticated$ = this.isAuthenticatedSignal.asReadonly();
   readonly userRole$ = computed(() => this.userRoleSignal());
+  readonly tokenTimeRemaining$ = computed(() => this.tokenExpirySignal());
 
   constructor(
     private http: HttpClient,
@@ -48,6 +51,14 @@ export class AuthService {
   ) {
     this.checkStoredToken();
     this.handleAuthorizationCode();
+
+    // Setup effect to monitor token expiry
+    effect(() => {
+      const timeRemaining = this.tokenTimeRemaining$();
+      if (timeRemaining > 0 && timeRemaining <= 30) {
+        this.refreshToken();
+      }
+    });
   }
 
   checkAuthentication() {
@@ -65,9 +76,24 @@ export class AuthService {
   private checkStoredToken() {
     const token = localStorage.getItem('access_token');
     if (token) {
-      this.tokenSignal.set(token);
-      this.isAuthenticatedSignal.set(true);
-      this.updateUserRole(token);
+      try {
+        const decodedToken = jwtDecode(token);
+        const expiryTime = (decodedToken as any).exp * 1000; // Convert to milliseconds
+        const now = Date.now();
+        const timeRemaining = Math.floor((expiryTime - now) / 1000);
+        
+        if (timeRemaining > 0) {
+          this.tokenSignal.set(token);
+          this.isAuthenticatedSignal.set(true);
+          this.updateUserRole(token);
+          this.startExpiryTimer(timeRemaining);
+        } else {
+          this.refreshToken();
+        }
+      } catch (error) {
+        console.error('Error decoding token:', error);
+        this.logout();
+      }
     }
   }
 
@@ -116,6 +142,7 @@ export class AuthService {
         this.tokenSignal.set(token.access_token);
         this.isAuthenticatedSignal.set(true);
         this.updateUserRole(token.access_token);
+        this.startExpiryTimer(token.expires_in);
         window.history.replaceState({}, document.title, window.location.pathname);
         this.router.navigate(['/dashboard']);
       } catch (error) {
@@ -124,6 +151,57 @@ export class AuthService {
         this.logout();
         this.router.navigate(['/login']);
       }
+    }
+  }
+
+  private startExpiryTimer(expiresIn: number) {
+    if (this.refreshTimerSubscription) {
+      this.refreshTimerSubscription.unsubscribe();
+    }
+
+    this.tokenExpirySignal.set(expiresIn);
+    this.refreshTimerSubscription = interval(1000).subscribe(() => {
+      const newValue = this.tokenExpirySignal() - 1;
+      this.tokenExpirySignal.set(newValue > 0 ? newValue : 0);
+    });
+  }
+
+  async refreshToken() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      this.logout();
+      return;
+    }
+
+    const body = new URLSearchParams();
+    body.set('grant_type', 'refresh_token');
+    body.set('refresh_token', refreshToken);
+    body.set('client_id', this.CLIENT_ID);
+    body.set('client_secret', this.CLIENT_SECRET);
+
+    try {
+      const response = await fetch(this.TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: body.toString()
+      });
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+
+      const token: KeycloakToken = await response.json();
+      localStorage.setItem('access_token', token.access_token);
+      localStorage.setItem('refresh_token', token.refresh_token);
+      this.tokenSignal.set(token.access_token);
+      this.isAuthenticatedSignal.set(true);
+      this.updateUserRole(token.access_token);
+      this.startExpiryTimer(token.expires_in);
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      this.logout();
     }
   }
 
@@ -139,6 +217,11 @@ export class AuthService {
   }
 
   logout() {
+    if (this.refreshTimerSubscription) {
+      this.refreshTimerSubscription.unsubscribe();
+    }
+    this.tokenExpirySignal.set(0);
+
     const refreshToken = localStorage.getItem('refresh_token');
     const body = new URLSearchParams();
     body.set('client_id', this.CLIENT_ID);
