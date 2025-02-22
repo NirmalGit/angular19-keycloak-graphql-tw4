@@ -1,20 +1,19 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
-  isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
+  private isAuthenticatedSignal = signal<boolean>(false);
+  readonly isAuthenticated$ = this.isAuthenticatedSignal.asReadonly();
 
   constructor(private router: Router) {}
 
   login(username: string, password: string): boolean {
     // TODO: Implement actual authentication logic
     if (username && password) {
-      this.isAuthenticatedSubject.next(true);
+      this.isAuthenticatedSignal.set(true);
       this.router.navigate(['/dashboard']);
       return true;
     }
@@ -22,11 +21,11 @@ export class AuthService {
   }
 
   logout() {
-    this.isAuthenticatedSubject.next(false);
+    this.isAuthenticatedSignal.set(false);
     this.router.navigate(['/login']);
   }
 
   isAuthenticated(): boolean {
-    return this.isAuthenticatedSubject.value;
+    return this.isAuthenticatedSignal();
   }
 }
