@@ -1,0 +1,39 @@
+graph TD;
+
+    %% Bootstrapping Section
+    A["<span style='fill:#4CAF50; color:white; font-weight:bold; padding:10px;'> main.ts </span>"] 
+    -->|Bootstrapping| B["<span style='fill:#388E3C; color:white; font-weight:bold; padding:10px;'> bootstrapApplication </span>"];
+
+    B --> C["<span style='fill:#F44336; color:white; font-weight:bold; padding:10px;'> AppComponent (standalone) </span>"];
+
+    %% Core Application Flow
+    subgraph "🟦 Core Application Flow"
+        C -->|Imports| D["<span style='fill:#2196F3; color:white; font-weight:bold; padding:10px;'> LayoutComponent </span>"];
+        C -->|Imports| E["<span style='fill:#03A9F4; color:white; font-weight:bold; padding:10px;'> AppRoutingModule </span>"];
+        
+        D -->|Handles Layouts| D1["General User Layout: Explorer & Viewer"];
+        D -->|Handles Layouts| D2["Admin Layout: Explorer Only"];
+        
+        E -->|Routing Configuration| E1["Lazy-Loaded Routes"];
+    end
+
+    %% Services & Dependency Injection (Restored Vertical Structure)
+    subgraph "🟪 Services & Dependency Injection"
+        N["<span style='fill:#9C27B0; color:white; font-weight:bold; padding:10px;'> ApiService </span>"] 
+        -->|Manages API Requests| C;
+
+        O["<span style='fill:#673AB7; color:white; font-weight:bold; padding:10px;'> AuthenticationService </span>"]
+        -->|Handles User Auth| C;
+
+        P["<span style='fill:#8E24AA; color:white; font-weight:bold; padding:10px;'> KeycloakService </span>"]
+        -->|Manages Keycloak Sessions| C;
+
+        Q["<span style='fill:#D81B60; color:white; font-weight:bold; padding:10px;'> GraphQLService </span>"]
+        -->|Handles GraphQL API| C;
+
+        R["<span style='fill:#E91E63; color:white; font-weight:bold; padding:10px;'> SSEService </span>"]
+        -->|Real-time Updates| C;
+
+        S["<span style='fill:#E65100; color:white; font-weight:bold; padding:10px;'> StateManagementService </span>"]
+        -->|NgRx & Signal Store| C;
+    end

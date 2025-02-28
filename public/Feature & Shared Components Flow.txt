@@ -1,0 +1,51 @@
+graph TD;
+
+    %% Shared Components
+    subgraph "🟩 Shared Components & Directives" 
+        subgraph "🔵 UI Components"
+            F["<span style='fill:#FF9800; color:black; font-weight:bold; padding:10px;'> ButtonComponent </span>"];
+            G["<span style='fill:#FF5722; color:white; font-weight:bold; padding:10px;'> ModalComponent </span>"];
+            H["<span style='fill:#9C27B0; color:white; font-weight:bold; padding:10px;'> NotificationComponent </span>"];
+        end
+        
+        subgraph "🟡 Directives"
+            I["<span style='fill:#FFEB3B; color:black; font-weight:bold; padding:10px;'> HighlightDirective </span>"];
+            J["<span style='fill:#FFEB3B; color:black; font-weight:bold; padding:10px;'> AutofocusDirective </span>"];
+            K["<span style='fill:#FFEB3B; color:black; font-weight:bold; padding:10px;'> TooltipDirective </span>"];
+        end
+        
+        subgraph "🔵 Pipes"
+            L["<span style='fill:#03A9F4; color:white; font-weight:bold; padding:10px;'> DateFormatPipe </span>"];
+            M["<span style='fill:#03A9F4; color:white; font-weight:bold; padding:10px;'> FilterPipe </span>"];
+        end
+    end
+
+    %% Feature Components
+    subgraph "🟠 Feature Components"
+        subgraph "🔒 Authentication & RBAC"
+            T1["<span style='fill:#D84315; color:white; font-weight:bold; padding:10px;'> LoginComponent </span>"];
+            T2["<span style='fill:#D84315; color:white; font-weight:bold; padding:10px;'> RegisterComponent </span>"];
+            T3["<span style='fill:#D84315; color:white; font-weight:bold; padding:10px;'> ForgotPasswordComponent </span>"];
+        end
+        
+        subgraph "📊 Dashboard Components"
+            U1["<span style='fill:#1E88E5; color:white; font-weight:bold; padding:10px;'> DashboardComponent </span>"];
+            U2["<span style='fill:#1E88E5; color:white; font-weight:bold; padding:10px;'> AnalyticsComponent </span>"];
+            U3["<span style='fill:#1E88E5; color:white; font-weight:bold; padding:10px;'> RecentActivityComponent </span>"];
+        end
+
+        subgraph "🔍 Search & Filters"
+            V1["<span style='fill:#00897B; color:white; font-weight:bold; padding:10px;'> SearchBarComponent </span>"];
+            V2["<span style='fill:#00897B; color:white; font-weight:bold; padding:10px;'> FilterModalComponent </span>"];
+        end
+
+        subgraph "📂 Procedure Management"
+            W1["<span style='fill:#6D4C41; color:white; font-weight:bold; padding:10px;'> ProcedureListComponent </span>"];
+            W2["<span style='fill:#6D4C41; color:white; font-weight:bold; padding:10px;'> ProcedureDetailComponent </span>"];
+        end
+
+        subgraph "📷 Media Management"
+            X1["<span style='fill:#5D4037; color:white; font-weight:bold; padding:10px;'> MediaViewerComponent </span>"];
+            X2["<span style='fill:#5D4037; color:white; font-weight:bold; padding:10px;'> MediaSearchComponent </span>"];
+        end
+    end
